@@ -1,5 +1,6 @@
 using System.Text.Json;
-using SpaceX.Api.Models;
+using SpaceX.Api.Models.Input;
+using SpaceX.Api.Models.Output;
 
 namespace SpaceX.Api.Services
 {
@@ -16,26 +17,46 @@ namespace SpaceX.Api.Services
             _apiBaseUrl = _configuration.GetSection("ApiBaseUrl").Value;
         }
 
-        public async Task<LaunchInfo> GetLatestLaunch() =>
-            await PerformHttpGet<LaunchInfo>($"{_apiBaseUrl}/launches/latest");
+        public async Task<LaunchOutputInfo> GetLatestLaunchAsync() =>
+            await PerformHttpGetAsync($"{_apiBaseUrl}/launches/latest");
 
-        public async Task<LaunchInfo> GetNextLaunch() =>
-            await PerformHttpGet<LaunchInfo>($"{_apiBaseUrl}/launches/next");
+        public async Task<LaunchOutputInfo> GetNextLaunchAsync() =>
+            await PerformHttpGetAsync($"{_apiBaseUrl}/launches/next");
 
-        public async Task<IEnumerable<LaunchInfo>> GetPastLaunches() =>
-            await PerformHttpGet<IEnumerable<LaunchInfo>>($"{_apiBaseUrl}/launches/past");
+        public async Task<IEnumerable<LaunchOutputInfo>> GetPastLaunchesAsync() =>
+            await PerformHttpGetListAsync($"{_apiBaseUrl}/launches/past");
 
-        public async Task<IEnumerable<LaunchInfo>> GetUpcomingLaunches() =>
-            await PerformHttpGet<IEnumerable<LaunchInfo>>($"{_apiBaseUrl}/launches/upcoming");
+        public async Task<IEnumerable<LaunchOutputInfo>> GetUpcomingLaunchesAsync() =>
+            await PerformHttpGetListAsync($"{_apiBaseUrl}/launches/upcoming");
 
-        private async Task<T> PerformHttpGet<T>(string url)
+        private async Task<LaunchOutputInfo> PerformHttpGetAsync(string url)
+        {
+            var launchInfoResponse = await PerformHttpGetStringAsync(url);
+            var info = JsonSerializer.Deserialize<LaunchInfo>(launchInfoResponse);
+            return new LaunchOutputInfo(info);
+        }
+
+        public async Task<RocketOutputInfo> PerformRocketSearchAsync(string rocketId)
+        {
+            var rocketResponse = PerformHttpGetStringAsync($"{_apiBaseUrl}/rockets/{rocketId}");
+            var rocketInfo = JsonSerializer.Deserialize<RocketInputInfo>(await rocketResponse);
+            return new RocketOutputInfo(rocketInfo);
+        }
+
+        private async Task<IEnumerable<LaunchOutputInfo>> PerformHttpGetListAsync(string url)
+        {
+            var launchInfoResponse = await PerformHttpGetStringAsync(url);
+            var list = JsonSerializer.Deserialize<IEnumerable<LaunchInfo>>(launchInfoResponse);
+            return list.Select(info => new LaunchOutputInfo(info));
+        }
+
+        private async Task<string> PerformHttpGetStringAsync(string url)
         {
             var client = _httpClientFactory.CreateClient();
             var response = await client.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<T>(content);
+                return await response.Content.ReadAsStringAsync();
             }
 
             throw new HttpRequestException($"Status code: {response.StatusCode}");

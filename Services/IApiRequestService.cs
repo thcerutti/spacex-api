@@ -1,12 +1,13 @@
-using SpaceX.Api.Models;
+using SpaceX.Api.Models.Output;
 
 namespace SpaceX.Api.Services
 {
     public interface IApiRequestService
     {
-        Task<LaunchInfo> GetNextLaunch();
-        Task<LaunchInfo> GetLatestLaunch();
-        Task<IEnumerable<LaunchInfo>> GetUpcomingLaunches();
-        Task<IEnumerable<LaunchInfo>> GetPastLaunches();
+        Task<LaunchOutputInfo> GetNextLaunchAsync();
+        Task<LaunchOutputInfo> GetLatestLaunchAsync();
+        Task<IEnumerable<LaunchOutputInfo>> GetUpcomingLaunchesAsync();
+        Task<IEnumerable<LaunchOutputInfo>> GetPastLaunchesAsync();
+        Task<RocketOutputInfo> PerformRocketSearchAsync(string rocketId);
     }
 }
