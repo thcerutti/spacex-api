@@ -1,16 +1,17 @@
 using SpaceX.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+const string AllowSpacexApi = "AllowSpacexApiCorsPolicy";
 
 // Add services to the container.
-const string AllowSpacexApi = "AllowSpacexApiCorsPolicy";
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IApiRequestService, ApiRequestService>();
-builder.Services.AddCors(opt => {
+builder.Services.AddCors(opt =>
+{
     opt.AddPolicy(AllowSpacexApi,
         builder => builder.AllowAnyOrigin()
             .AllowAnyMethod()
@@ -19,13 +20,14 @@ builder.Services.AddCors(opt => {
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(opt =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    opt.SwaggerEndpoint("/swagger/v1/swagger.json", "My SpaceX API");
+    opt.RoutePrefix = string.Empty;
+});
 
+// Configure the HTTP request pipeline.
 app.UseHttpsRedirection();
 
 app.UseAuthorization();

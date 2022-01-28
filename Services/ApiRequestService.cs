@@ -17,40 +17,57 @@ namespace SpaceX.Api.Services
             _apiBaseUrl = _configuration.GetSection("ApiBaseUrl").Value;
         }
 
-        public async Task<LaunchOutputInfo> GetLatestLaunchAsync() =>
-            await PerformHttpGetAsync($"{_apiBaseUrl}/launches/latest");
+        public async Task<LaunchOutputInfo?> GetLatestLaunchAsync() =>
+            await GetLaunchInfoAsync("/latest");
 
-        public async Task<LaunchOutputInfo> GetNextLaunchAsync() =>
-            await PerformHttpGetAsync($"{_apiBaseUrl}/launches/next");
+        public async Task<LaunchOutputInfo?> GetNextLaunchAsync() =>
+            await GetLaunchInfoAsync("/next");
 
         public async Task<IEnumerable<LaunchOutputInfo>> GetPastLaunchesAsync() =>
-            await PerformHttpGetListAsync($"{_apiBaseUrl}/launches/past");
+            await GetLaunchListInfoAsync("/past");
 
         public async Task<IEnumerable<LaunchOutputInfo>> GetUpcomingLaunchesAsync() =>
-            await PerformHttpGetListAsync($"{_apiBaseUrl}/launches/upcoming");
+            await GetLaunchListInfoAsync("/upcoming");
 
-        private async Task<LaunchOutputInfo> PerformHttpGetAsync(string url)
+        public async Task<RocketOutputInfo?> PerformRocketSearchAsync(string rocketId)
         {
-            var launchInfoResponse = await PerformHttpGetStringAsync(url);
-            var info = JsonSerializer.Deserialize<LaunchInfo>(launchInfoResponse);
-            return new LaunchOutputInfo(info);
-        }
-
-        public async Task<RocketOutputInfo> PerformRocketSearchAsync(string rocketId)
-        {
-            var rocketResponse = PerformHttpGetStringAsync($"{_apiBaseUrl}/rockets/{rocketId}");
+            var url = $"{_apiBaseUrl}/rockets/{rocketId}";
+            var rocketResponse = GetStringResponseAsync(url);
             var rocketInfo = JsonSerializer.Deserialize<RocketInputInfo>(await rocketResponse);
+            if (rocketInfo == null)
+            {
+                return default;
+            }
             return new RocketOutputInfo(rocketInfo);
         }
 
-        private async Task<IEnumerable<LaunchOutputInfo>> PerformHttpGetListAsync(string url)
+        private async Task<LaunchOutputInfo?> GetLaunchInfoAsync(string apiPath)
         {
-            var launchInfoResponse = await PerformHttpGetStringAsync(url);
-            var list = JsonSerializer.Deserialize<IEnumerable<LaunchInfo>>(launchInfoResponse);
+            var url = GetFullLaunchesUrlPath(apiPath);
+            var launchInfoResponse = await GetStringResponseAsync(url);
+            var info = JsonSerializer.Deserialize<LaunchInputInfo>(launchInfoResponse);
+            if (info == null)
+            {
+                return default;
+            }
+            return new LaunchOutputInfo(info);
+        }
+
+        private async Task<IEnumerable<LaunchOutputInfo>> GetLaunchListInfoAsync(string apiPath)
+        {
+            var url = GetFullLaunchesUrlPath(apiPath);
+            var launchInfoResponse = await GetStringResponseAsync(url);
+            var list = JsonSerializer.Deserialize<IEnumerable<LaunchInputInfo>>(launchInfoResponse);
+            if (list == null)
+            {
+                return Enumerable.Empty<LaunchOutputInfo>();
+            }
             return list.Select(info => new LaunchOutputInfo(info));
         }
 
-        private async Task<string> PerformHttpGetStringAsync(string url)
+        private string GetFullLaunchesUrlPath(string path) => $"{_apiBaseUrl}/launches{path}";
+
+        private async Task<string> GetStringResponseAsync(string url)
         {
             var client = _httpClientFactory.CreateClient();
             var response = await client.GetAsync(url);
@@ -58,8 +75,13 @@ namespace SpaceX.Api.Services
             {
                 return await response.Content.ReadAsStringAsync();
             }
-
-            throw new HttpRequestException($"Status code: {response.StatusCode}");
+            switch (response.StatusCode)
+            {
+                case System.Net.HttpStatusCode.NotFound:
+                    throw new ArgumentException();
+                default:
+                    throw new HttpRequestException($"Status code: {response.StatusCode}");
+            }
         }
     }
 }

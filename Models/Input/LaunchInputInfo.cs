@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace SpaceX.Api.Models.Input
 {
-    public class LaunchInfo
+    public class LaunchInputInfo
     {
         [JsonPropertyName("flight_number")]
         public int FlightNumber { get; set; }
